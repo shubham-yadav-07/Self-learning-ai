@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>MetaMind</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Inter',sans-serif;
+  background:#f5f5f0;
+  color:#1a1a1a;
+  min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;
+  padding:40px 20px 80px;
+}
+
+/* ── Top bar ── */
+.topbar{
+  width:100%;max-width:680px;
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:48px;
+}
+.brand{
+  font-size:16px;font-weight:600;letter-spacing:-0.3px;
+  display:flex;align-items:center;gap:8px;
+}
+.brand-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);
+}
+.status-pill{
+  font-size:11px;font-family:'JetBrains Mono',monospace;
+  padding:4px 10px;border-radius:20px;
+  background:#fff;border:1px solid #e0e0e0;color:#888;
+}
+.status-pill.live{color:#16a34a;border-color:#bbf7d0;background:#f0fdf4}
+
+/* ── Main input ── */
+.main-input-wrap{width:100%;max-width:680px;margin-bottom:12px}
+.question-box{
+  width:100%;
+  background:#fff;
+  border:1px solid #e0e0e0;
+  border-radius:16px;
+  padding:20px;
+  display:flex;flex-direction:column;gap:12px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.04);
+  transition:border-color 0.2s,box-shadow 0.2s;
+}
+.question-box:focus-within{
+  border-color:#a5b4fc;
+  box-shadow:0 0 0 3px rgba(99,102,241,0.08),0 2px 8px rgba(0,0,0,0.04);
+}
+textarea#q{
+  width:100%;border:none;outline:none;resize:none;
+  font-size:16px;font-family:'Inter',sans-serif;
+  color:#1a1a1a;background:transparent;
+  min-height:56px;line-height:1.6;
+}
+textarea#q::placeholder{color:#c0c0c0}
+.input-footer{display:flex;align-items:center;justify-content:space-between}
+.char-hint{font-size:11px;color:#ccc;font-family:'JetBrains Mono',monospace}
+#askBtn{
+  height:38px;padding:0 20px;
+  background:#6366f1;border:none;border-radius:10px;
+  color:#fff;font-size:14px;font-weight:500;
+  font-family:'Inter',sans-serif;
+  cursor:pointer;transition:background 0.15s,transform 0.1s,opacity 0.2s;
+  display:flex;align-items:center;gap:7px;
+}
+#askBtn:hover:not(:disabled){background:#4f46e5}
+#askBtn:active:not(:disabled){transform:scale(0.97)}
+#askBtn:disabled{opacity:0.4;cursor:not-allowed}
+.btn-icon{font-size:14px}
+
+/* example chips */
+.examples{
+  width:100%;max-width:680px;
+  display:flex;gap:6px;flex-wrap:wrap;margin-bottom:36px;
+}
+.ex{
+  font-size:12px;padding:5px 12px;border-radius:20px;
+  background:#fff;border:1px solid #e8e8e8;
+  color:#666;cursor:pointer;transition:all 0.15s;
+}
+.ex:hover{border-color:#a5b4fc;color:#6366f1;background:#f5f3ff}
+
+/* ── Answer flow ── */
+#flow{width:100%;max-width:680px;display:none;flex-direction:column;gap:0}
+
+/* Each attempt block */
+.attempt-block{
+  position:relative;
+  display:flex;flex-direction:column;
+  animation:fadeIn 0.3s ease;
+}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* Algorithm header row */
+.algo-row{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 0 10px;
+}
+.algo-icon{
+  width:32px;height:32px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-family:'JetBrains Mono',monospace;font-weight:500;
+  flex-shrink:0;
+}
+.algo-icon.cb {background:#ede9fe;color:#7c3aed}
+.algo-icon.mab{background:#d1fae5;color:#059669}
+.algo-icon.ql {background:#fef3c7;color:#d97706}
+
+.algo-info{flex:1}
+.algo-name{font-size:13px;font-weight:600;color:#1a1a1a;line-height:1.2}
+.algo-sub{font-size:11px;color:#999;margin-top:1px}
+.algo-tag{
+  font-size:10px;font-family:'JetBrains Mono',monospace;
+  padding:2px 8px;border-radius:4px;font-weight:500;
+}
+.tag-cb {background:#ede9fe;color:#7c3aed}
+.tag-mab{background:#d1fae5;color:#059669}
+.tag-ql {background:#fef3c7;color:#d97706}
+
+/* Answer card */
+.answer-card{
+  background:#fff;border:1px solid #e8e8e8;border-radius:14px;
+  padding:20px;margin-bottom:2px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.04);
+}
+.answer-card.thinking{border-style:dashed;border-color:#e0e0e0}
+.thinking-row{
+  display:flex;align-items:center;gap:8px;
+  font-size:13px;color:#aaa;
+}
+.dots span{
+  display:inline-block;width:4px;height:4px;border-radius:50%;
+  background:#ccc;animation:dot 1.2s infinite;margin:0 1px;vertical-align:middle;
+}
+.dots span:nth-child(2){animation-delay:.2s}
+.dots span:nth-child(3){animation-delay:.4s}
+@keyframes dot{0%,80%,100%{transform:scale(1);opacity:.4}40%{transform:scale(1.3);opacity:1}}
+
+.answer-text{font-size:14px;line-height:1.8;color:#2d2d2d;white-space:pre-wrap}
+
+/* Result row — reward/penalty */
+.result-row{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 0 14px;flex-wrap:wrap;
+}
+.score-badge{
+  font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:500;
+  padding:4px 10px;border-radius:6px;
+}
+.score-pass{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}
+.score-fail{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+
+.reward-chip{
+  display:flex;align-items:center;gap:4px;
+  font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:500;
+  padding:4px 10px;border-radius:6px;
+}
+.chip-pos{background:#f0fdf4;color:#16a34a}
+.chip-neg{background:#fef2f2;color:#dc2626}
+.chip-adapt{background:#fef3c7;color:#d97706}
+.chip-neu{background:#f4f4f5;color:#71717a}
+
+.result-reason{font-size:11px;color:#aaa;font-family:'JetBrains Mono',monospace;margin-left:auto}
+
+/* Connector line between attempts */
+.connector{
+  display:flex;align-items:center;gap:10px;
+  padding:6px 0;
+}
+.conn-line{flex:1;height:1px;background:#e8e8e8;border-top:1px dashed #ddd}
+.conn-label{
+  font-size:11px;color:#f59e0b;font-family:'JetBrains Mono',monospace;
+  background:#fffbeb;border:1px solid #fde68a;border-radius:20px;padding:3px 10px;
+  white-space:nowrap;
+}
+
+/* Final accepted answer */
+.final-section{
+  background:#fff;border:1px solid #86efac;border-radius:16px;
+  overflow:hidden;margin-top:4px;
+  box-shadow:0 2px 12px rgba(22,163,74,0.08);
+  animation:fadeIn 0.4s ease;
+}
+.final-header{
+  background:#f0fdf4;padding:12px 20px;
+  border-bottom:1px solid #bbf7d0;
+  display:flex;align-items:center;gap:8px;
+}
+.final-check{
+  width:20px;height:20px;border-radius:50%;
+  background:#16a34a;color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:11px;
+}
+.final-title{font-size:13px;font-weight:600;color:#15803d}
+.final-algo{
+  font-size:10px;font-family:'JetBrains Mono',monospace;
+  background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:4px;margin-left:auto;
+}
+.final-body{padding:20px;font-size:15px;line-height:1.85;color:#1a1a1a;white-space:pre-wrap}
+
+/* Summary row */
+.summary-row{
+  display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:16px;
+  border-top:1px solid #f0f0f0;
+}
+.sum-stat{
+  flex:1;min-width:120px;
+  background:#fafafa;border:1px solid #ebebeb;border-radius:10px;
+  padding:12px 14px;text-align:center;
+}
+.sum-val{font-size:18px;font-weight:600;color:#1a1a1a;font-family:'JetBrains Mono',monospace}
+.sum-lbl{font-size:10px;color:#aaa;margin-top:2px;font-family:'JetBrains Mono',monospace}
+
+/* Error */
+.err{
+  width:100%;max-width:680px;margin-top:12px;
+  background:#fef2f2;border:1px solid #fecaca;border-radius:12px;
+  padding:14px 18px;font-size:13px;color:#dc2626;display:none;
+  white-space:pre-wrap;font-family:'JetBrains Mono',monospace;
+}
+
+/* Reset btn */
+.reset-btn{
+  display:none;margin-top:20px;
+  font-size:13px;color:#6366f1;background:none;border:none;
+  cursor:pointer;font-family:'Inter',sans-serif;text-decoration:underline;
+  text-underline-offset:2px;
+}
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-dot"></div>
+    MetaMind
+  </div>
+  <div class="status-pill" id="statusPill">idle</div>
+</div>
+
+<!-- Input -->
+<div class="main-input-wrap">
+  <div class="question-box">
+    <textarea id="q" rows="2" placeholder="Ask anything — MetaMind will find the best answer…"></textarea>
+    <div class="input-footer">
+      <span class="char-hint">Press Enter or click Ask</span>
+      <button id="askBtn" onclick="ask()">
+        <span class="btn-icon">→</span> Ask
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Examples -->
+<div class="examples">
+  <span class="ex" onclick="se(this)">How does gradient descent work?</span>
+  <span class="ex" onclick="se(this)">Explain TCP/IP simply</span>
+  <span class="ex" onclick="se(this)">What is reinforcement learning?</span>
+  <span class="ex" onclick="se(this)">How do transformers work?</span>
+  <span class="ex" onclick="se(this)">15% of 6240?</span>
+</div>
+
+<div class="err" id="err"></div>
+
+<!-- Answer Flow -->
+<div id="flow"></div>
+<button class="reset-btn" id="resetBtn" onclick="resetAll()">← Ask another question</button>
+
+<script>
+const API = 'http://localhost:8000';
+
+const ALGOS = {
+  contextual_bandit:  {cls:'cb',  icon:'CB', name:'Contextual Bandit',  sub:'Greedy exploitation — fast, zero exploration', tag:'tag-cb'},
+  multi_armed_bandit: {cls:'mab', icon:'MAB',name:'Multi-Armed Bandit', sub:'UCB1 exploration — testing multiple strategies', tag:'tag-mab'},
+  q_learning:         {cls:'ql',  icon:'QL', name:'Q-Learning',         sub:'Full RL agent — optimal strategy via Q-table',  tag:'tag-ql'},
+};
+
+function se(el){ document.getElementById('q').value = el.textContent }
+
+function pill(text, cls='') {
+  const p = document.getElementById('statusPill');
+  p.textContent = text;
+  p.className = 'status-pill' + (cls?' '+cls:'');
+}
+
+function showErr(msg){
+  const e = document.getElementById('err');
+  e.textContent = msg; e.style.display = 'block';
+}
+function hideErr(){ document.getElementById('err').style.display='none' }
+
+function resetAll(){
+  document.getElementById('flow').innerHTML='';
+  document.getElementById('flow').style.display='none';
+  document.getElementById('resetBtn').style.display='none';
+  document.getElementById('q').value='';
+  document.getElementById('askBtn').disabled=false;
+  pill('idle');
+  hideErr();
+}
+
+/* Build a "thinking" attempt placeholder */
+function addThinkingBlock(algoKey, isFirst) {
+  const a = ALGOS[algoKey];
+  const flow = document.getElementById('flow');
+
+  // connector between attempts
+  if(!isFirst){
+    const conn = document.createElement('div');
+    conn.className='connector';
+    conn.innerHTML=`<div class="conn-line"></div><span class="conn-label">⚡ penalty applied — switching model</span><div class="conn-line"></div>`;
+    flow.appendChild(conn);
+  }
+
+  const block = document.createElement('div');
+  block.className='attempt-block';
+  block.id='block-'+algoKey;
+  block.innerHTML=`
+    <div class="algo-row">
+      <div class="algo-icon ${a.cls}">${a.icon}</div>
+      <div class="algo-info">
+        <div class="algo-name">${a.name}</div>
+        <div class="algo-sub">${a.sub}</div>
+      </div>
+      <span class="algo-tag ${a.tag}">attempting…</span>
+    </div>
+    <div class="answer-card thinking" id="card-${algoKey}">
+      <div class="thinking-row">
+        Analysing &amp; generating answer
+        <div class="dots"><span></span><span></span><span></span></div>
+      </div>
+    </div>
+  `;
+  flow.appendChild(block);
+  flow.scrollIntoView({behavior:'smooth',block:'end'});
+  return block;
+}
+
+/* Fill in the actual answer + reward row */
+function fillResult(algoKey, response, reward, passed) {
+  const a   = ALGOS[algoKey];
+  const card= document.getElementById('card-'+algoKey);
+  const block=document.getElementById('block-'+algoKey);
+
+  // Update card
+  card.className='answer-card';
+  card.innerHTML=`<div class="answer-text">${esc(response)}</div>`;
+
+  // Update tag
+  const tag = block.querySelector('.algo-tag');
+  tag.textContent = passed ? 'answered ✓' : 'insufficient ✗';
+  tag.className = `algo-tag ${passed?'score-pass':'score-fail'}`;
+  tag.style.border='none';
+
+  // Result row
+  const rSign = reward.total >= 0 ? '+' : '';
+  const rCls  = reward.total >= 0 ? 'chip-pos' : 'chip-neg';
+  const adaptHtml = reward.adaptation_bonus > 0
+    ? `<span class="reward-chip chip-adapt">↑ adapt +${reward.adaptation_bonus.toFixed(2)}</span>` : '';
+
+  const row = document.createElement('div');
+  row.className='result-row';
+  row.innerHTML=`
+    <span class="score-badge ${passed?'score-pass':'score-fail'}">
+      ${passed?'✓':'✗'} Quality: ${(reward.score*100).toFixed(0)}%
+    </span>
+    <span class="reward-chip ${rCls}">
+      ${passed?'Reward':'Penalty'} ${rSign}${reward.total.toFixed(2)}
+    </span>
+    <span class="reward-chip chip-neu">base ${reward.base>=0?'+':''}${reward.base.toFixed(2)}</span>
+    ${adaptHtml}
+    <span class="result-reason">${esc(reward.reason)}</span>
+  `;
+  block.appendChild(row);
+}
+
+/* Final accepted answer box */
+function showFinal(response, algoKey, steps, totalReward, adaptGain) {
+  const a = ALGOS[algoKey] || {};
+  const flow = document.getElementById('flow');
+
+  const box = document.createElement('div');
+  box.className='final-section';
+  box.innerHTML=`
+    <div class="final-header">
+      <div class="final-check">✓</div>
+      <span class="final-title">Best Answer Found</span>
+      <span class="final-algo">${a.name||algoKey}</span>
+    </div>
+    <div class="final-body">${esc(response)}</div>
+  `;
+
+  // Summary stats
+  const firstScore = steps[0]?.reward?.score || 0;
+  const lastScore  = steps[steps.length-1]?.reward?.score || 0;
+  const sum = document.createElement('div');
+  sum.className='summary-row';
+  sum.style.padding='0 20px 20px';
+  sum.innerHTML=`
+    <div class="sum-stat">
+      <div class="sum-val">${steps.length}</div>
+      <div class="sum-lbl">attempts</div>
+    </div>
+    <div class="sum-stat">
+      <div class="sum-val">${(lastScore*100).toFixed(0)}%</div>
+      <div class="sum-lbl">final quality</div>
+    </div>
+    <div class="sum-stat">
+      <div class="sum-val" style="color:${totalReward>=0?'#16a34a':'#dc2626'}">${totalReward>=0?'+':''}${totalReward.toFixed(2)}</div>
+      <div class="sum-lbl">net reward</div>
+    </div>
+    <div class="sum-stat">
+      <div class="sum-val" style="color:#d97706">${adaptGain}</div>
+      <div class="sum-lbl">adapt gain</div>
+    </div>
+  `;
+  box.appendChild(sum);
+  flow.appendChild(box);
+  box.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+/* ═══ Main ═══ */
+async function ask(){
+  const task = document.getElementById('q').value.trim();
+  if(!task) return;
+  hideErr();
+  document.getElementById('askBtn').disabled=true;
+  document.getElementById('resetBtn').style.display='none';
+
+  const flow = document.getElementById('flow');
+  flow.innerHTML='';
+  flow.style.display='flex';
+  pill('connecting…');
+
+  // Reset backend env
+  try{
+    const res = await fetch(`${API}/reset`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({task})
+    });
+    if(!res.ok) throw new Error('Backend error '+res.status);
+  } catch(e){
+    showErr(`Cannot connect to backend.\n\nRun this in your terminal:\n  uvicorn meta_ai_env:app --reload --port 8000\n\n(${e.message})`);
+    document.getElementById('askBtn').disabled=false;
+    pill('offline');
+    return;
+  }
+
+  pill('thinking…','live');
+  const ALGO_KEYS = ['contextual_bandit','multi_armed_bandit','q_learning'];
+  let steps=[], totalReward=0, finalStep=null;
+
+  for(let i=0;i<3;i++){
+    const key = ALGO_KEYS[i];
+    addThinkingBlock(key, i===0);
+    pill(`trying ${ALGOS[key].name}…`,'live');
+
+    let result;
+    try{
+      const res = await fetch(`${API}/step`,{method:'POST'});
+      if(!res.ok){ const t=await res.text(); throw new Error(t) }
+      result = await res.json();
+    } catch(e){
+      showErr('Step error: '+e.message);
+      break;
+    }
+
+    fillResult(key, result.response, result.reward, result.reward.passed);
+    steps.push(result);
+    totalReward = parseFloat((totalReward + result.reward.total).toFixed(4));
+    finalStep = result;
+
+    if(result.reward.passed){
+      // Stop loop — show final
+      for(let j=i+1;j<3;j++){
+        // remaining cards not needed
+      }
+      break;
+    }
+  }
+
+  // Show final answer
+  if(finalStep){
+    const firstScore = steps[0]?.reward?.score || 0;
+    const lastScore  = finalStep.reward.score;
+    const adaptGain  = lastScore > firstScore
+      ? '+'+((lastScore-firstScore)*100).toFixed(1)+'%'
+      : '0%';
+    showFinal(finalStep.response, finalStep.algo_key, steps, totalReward, adaptGain);
+  }
+
+  pill('done','live');
+  document.getElementById('resetBtn').style.display='block';
+}
+
+// Enter key
+document.getElementById('q').addEventListener('keydown', e=>{
+  if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); ask() }
+});
+
+// Auto-resize textarea
+document.getElementById('q').addEventListener('input', function(){
+  this.style.height='auto';
+  this.style.height=this.scrollHeight+'px';
+});
+</script>
+</body>
+</html>
