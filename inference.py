@@ -39,8 +39,7 @@ def run_episode(base_url: str, task: str, verbose: bool = True) -> dict:
     reset_data = r.json()
 
     if verbose:
-        print(f"\n{'='*60}")
-        print(f"Task   : {task}")
+        print(f"[START] task={task}", flush=True)
         print(f"Run ID : {reset_data.get('info', {}).get('run_id', 'N/A')}")
         print(f"{'='*60}")
 
@@ -87,10 +86,7 @@ def run_episode(base_url: str, task: str, verbose: bool = True) -> dict:
 
         if verbose:
             status = "✓ PASS" if passed else "✗ FAIL"
-            print(f"\n[Step {i+1}] {algorithm} ({level})")
-            print(f"  Status    : {status}")
-            print(f"  Score     : {score*100:.1f}%  (threshold {threshold*100:.0f}%)")
-            print(f"  Reward    : {reward:+.3f}")
+            print(f"[STEP] step={i+1} reward={reward}", flush=True)
             print(f"  Reason    : {reason}")
             if response:
                 snippet = response[:200]
@@ -112,8 +108,7 @@ def run_episode(base_url: str, task: str, verbose: bool = True) -> dict:
     }
 
     if verbose:
-        print(f"\n{'─'*60}")
-        print(f"  Winner      : {result['winning_algorithm']}")
+        print(f"[END] task={task} score={last_score:.2f} steps={len(steps)}", flush=True)
         print(f"  Final Score : {last_score*100:.1f}%")
         print(f"  Net Reward  : {total_reward:+.3f}")
         print(f"  Adapt Gain  : {adapt_gain*100:.1f}%")
@@ -179,7 +174,8 @@ def main():
         r.raise_for_status()
     except Exception as e:
         print(f"[ERROR] Cannot reach {args.url}: {e}")
-        print("Start server: uvicorn main:app --host 0.0.0.0 --port 8000")
+        
+        print("Start server: uvicorn main:app --host 0.0.0.0 --port 7860")
         sys.exit(1)
 
     run_baseline(args.url, tasks)
