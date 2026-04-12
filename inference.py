@@ -7,7 +7,7 @@ Runs the full CB → MAB → QL pipeline against test tasks.
 Usage:
     python inference.py
     python inference.py --task "Explain neural networks"
-    python inference.py --url http://localhost:8000
+    python inference.py --url http://localhost:7860
 """
 
 import argparse
@@ -16,7 +16,7 @@ import sys
 import time
 import requests
 
-DEFAULT_URL  = "http://localhost:8000"
+DEFAULT_URL  = "http://localhost:7860"
 TEST_TASKS   = [
     "What is machine learning?",
     "Explain gradient descent in simple terms.",
