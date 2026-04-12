@@ -14,7 +14,7 @@ COPY main.py .
 COPY inference.py .
 
 # Copy optional files
-COPY openenv.yaml . 2>/dev/null || true
+COPY openenv.yaml .
 
 # Expose port
 COPY app.py .
