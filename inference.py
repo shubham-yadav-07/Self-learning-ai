@@ -15,8 +15,36 @@ import json
 import sys
 import time
 import requests
+import os
+from openai import OpenAI
 
 DEFAULT_URL  = "http://localhost:7860"
+def get_client():
+    base_url = os.environ.get("API_BASE_URL")
+    api_key = os.environ.get("API_KEY")
+
+    if not base_url or not api_key:
+        print("[WARNING] No proxy, using fallback", flush=True)
+        return None
+
+    return OpenAI(base_url=base_url, api_key=api_key)
+
+
+def call_llm(prompt):
+    client = get_client()
+
+    if client is None:
+        return prompt  # fallback
+
+    try:
+        res = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return res.choices[0].message.content
+    except Exception as e:
+        print(f"[ERROR] LLM failed: {e}", flush=True)
+        return prompt
 TEST_TASKS   = [
     "What is machine learning?",
     "Explain gradient descent in simple terms.",
@@ -51,10 +79,11 @@ def run_episode(base_url: str, task: str, verbose: bool = True) -> dict:
     for i in range(3):
         if done:
             break
+        llm_output = call_llm(task)
 
         step_r = requests.post(
             f"{base_url}/step",
-            json={"action": {"type": "reason", "content": task}},
+            json={"action": {"type": "reason", "content": llm_output}},
             timeout=120,
         )
         step_r.raise_for_status()
