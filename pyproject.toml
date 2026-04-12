@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "metamind-env"
+version = "1.0.0"
+description = "MetaMind — Self-Improving AI Environment (Contextual Bandit → MAB → Q-Learning)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["openenv", "reinforcement-learning", "ai", "environment"]
+
+dependencies = [
+    "fastapi==0.115.0",
+    "uvicorn[standard]==0.30.6",
+    "requests==2.32.3",
+    "python-dotenv==1.0.1",
+    "pydantic==2.8.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "httpx"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["metamind*"]
+
+[project.scripts]
+metamind-serve = "main:app"
+
+[tool.openenv]
+name        = "MetaMind"
+version     = "1.0.0"
+entry_point = "main:app"
+port        = 8000
