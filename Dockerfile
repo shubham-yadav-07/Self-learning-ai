@@ -1,37 +1,29 @@
+# Use lightweight Python image
 FROM python:3.11-slim
 
+# Set working directory
 WORKDIR /app
 
-# System deps
+# Install system dependencies
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Install Python deps directly
+# Install Python dependencies
 RUN pip install --no-cache-dir \
-    fastapi==0.115.0 \
-    "uvicorn[standard]==0.30.6" \
-    requests==2.32.3 \
-    python-dotenv==1.0.1 \
-    "pydantic==2.8.2"
+    fastapi \
+    "uvicorn[standard]" \
+    requests \
+    python-dotenv \
+    pydantic \
+    openenv-core
 
-# Try openenv-core (graceful fallback)
-RUN pip install openenv-core --quiet || pip install openenv --quiet || true
+# Copy entire project into container
+COPY . .
 
-# Copy source files (no server/ — created inline below)
-COPY main.py .
-COPY app.py .
-COPY inference.py .
-COPY pyproject.toml .
-COPY uv.lock .
-COPY openenv.yaml .
-
-# Create server/ package inline — avoids COPY server/ failures if folder missing
-RUN mkdir -p server && \
-    echo '# server package' > server/__init__.py && \
-    printf 'import sys, os\nsys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))\nfrom main import app\nif __name__ == "__main__":\n    import uvicorn\n    uvicorn.run("main:app", host="0.0.0.0", port=int(os.environ.get("PORT", 7860)))\n' > server/app.py
-
+# Expose Hugging Face required port
 EXPOSE 7860
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-  CMD curl -f http://localhost:7860/ || exit 1
+# Health check (required for HF stability)
+HEALTHCHECK CMD curl --fail http://localhost:7860/ || exit 1
 
+# Start FastAPI server
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
