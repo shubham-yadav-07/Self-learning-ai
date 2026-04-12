@@ -1,12 +1,12 @@
 """
 inference.py — MetaMind OpenEnv Baseline Inference Script
 ==========================================================
-Required by OpenEnv spec. Runs the full CB → MAB → QL pipeline
-against a set of test tasks and reports reproducible scores.
+Required file at repo root by OpenEnv spec.
+Runs the full CB → MAB → QL pipeline against test tasks.
 
 Usage:
     python inference.py
-    python inference.py --task "Explain gradient descent"
+    python inference.py --task "Explain neural networks"
     python inference.py --url http://localhost:8000
 """
 
@@ -16,9 +16,8 @@ import sys
 import time
 import requests
 
-DEFAULT_URL = "http://localhost:8000"
-
-TEST_TASKS = [
+DEFAULT_URL  = "http://localhost:8000"
+TEST_TASKS   = [
     "What is machine learning?",
     "Explain gradient descent in simple terms.",
     "How does a neural network learn?",
@@ -28,23 +27,28 @@ TEST_TASKS = [
 
 
 def run_episode(base_url: str, task: str, verbose: bool = True) -> dict:
-    """Run one full episode: reset → step × 3 (or until done)."""
+    """Run one full episode: POST /reset → POST /step (up to 3 times)."""
 
-    # Reset
-    r = requests.post(f"{base_url}/reset", json={"task": task}, timeout=30)
+    # ── Reset ──────────────────────────────────────────────────
+    r = requests.post(
+        f"{base_url}/reset",
+        json={"task": task},
+        timeout=30,
+    )
     r.raise_for_status()
     reset_data = r.json()
 
     if verbose:
         print(f"\n{'='*60}")
-        print(f"Task: {task}")
-        print(f"Run ID: {reset_data.get('info', {}).get('run_id', 'N/A')}")
+        print(f"Task   : {task}")
+        print(f"Run ID : {reset_data.get('info', {}).get('run_id', 'N/A')}")
         print(f"{'='*60}")
 
-    steps = []
+    steps        = []
     total_reward = 0.0
-    done = False
+    done         = reset_data.get("done", False)
 
+    # ── Steps ──────────────────────────────────────────────────
     for i in range(3):
         if done:
             break
@@ -57,32 +61,43 @@ def run_episode(base_url: str, task: str, verbose: bool = True) -> dict:
         step_r.raise_for_status()
         step_data = step_r.json()
 
-        info   = step_data.get("info", {})
         reward = step_data.get("reward", 0.0)
-        done   = step_data.get("done", False)
-        total_reward += reward
+        done   = step_data.get("done",   False)
+        info   = step_data.get("info",   {})
+        obs    = step_data.get("observation", {})
 
+        # info fields (fallback to obs fields)
+        algorithm = info.get("algorithm") or obs.get("algorithm", f"Level-{i+1}")
+        level     = info.get("level")     or obs.get("level",     "")
+        score     = info.get("score",     obs.get("reward") or 0.0)
+        passed    = info.get("passed",    done)
+        threshold = info.get("threshold", 0.0)
+        reason    = info.get("reason",    "")
+        response  = info.get("response",  "")
+
+        total_reward += reward
         steps.append({
             "step":      i + 1,
-            "algorithm": info.get("algorithm", ""),
-            "score":     info.get("score", 0),
+            "algorithm": algorithm,
+            "level":     level,
+            "score":     score,
             "reward":    reward,
-            "passed":    info.get("passed", False),
+            "passed":    passed,
         })
 
         if verbose:
-            status = "✓ PASS" if info.get("passed") else "✗ FAIL"
-            print(f"\n[Step {i+1}] {info.get('algorithm','')} ({info.get('level','')})")
-            print(f"  Status : {status}")
-            print(f"  Score  : {info.get('score', 0)*100:.1f}%  "
-                  f"(threshold {info.get('threshold', 0)*100:.0f}%)")
-            print(f"  Reward : {reward:+.3f}")
-            print(f"  Reason : {info.get('reason','')}")
-            if info.get("response"):
-                print(f"  Answer : {info['response'][:200]}{'...' if len(info.get('response',''))>200 else ''}")
+            status = "✓ PASS" if passed else "✗ FAIL"
+            print(f"\n[Step {i+1}] {algorithm} ({level})")
+            print(f"  Status    : {status}")
+            print(f"  Score     : {score*100:.1f}%  (threshold {threshold*100:.0f}%)")
+            print(f"  Reward    : {reward:+.3f}")
+            print(f"  Reason    : {reason}")
+            if response:
+                snippet = response[:200]
+                print(f"  Response  : {snippet}{'...' if len(response) > 200 else ''}")
 
-    first_score = steps[0]["score"] if steps else 0
-    last_score  = steps[-1]["score"] if steps else 0
+    first_score = steps[0]["score"] if steps else 0.0
+    last_score  = steps[-1]["score"] if steps else 0.0
     adapt_gain  = max(0.0, last_score - first_score)
 
     result = {
@@ -98,18 +113,17 @@ def run_episode(base_url: str, task: str, verbose: bool = True) -> dict:
 
     if verbose:
         print(f"\n{'─'*60}")
-        print(f"  Winner     : {result['winning_algorithm']}")
-        print(f"  Final Score: {last_score*100:.1f}%")
-        print(f"  Net Reward : {total_reward:+.3f}")
-        print(f"  Adapt Gain : {adapt_gain*100:.1f}%")
-        print(f"  Attempts   : {len(steps)}")
-        print(f"  Success    : {result['success']}")
+        print(f"  Winner      : {result['winning_algorithm']}")
+        print(f"  Final Score : {last_score*100:.1f}%")
+        print(f"  Net Reward  : {total_reward:+.3f}")
+        print(f"  Adapt Gain  : {adapt_gain*100:.1f}%")
+        print(f"  Success     : {result['success']}")
 
     return result
 
 
-def run_baseline(base_url: str, tasks: list[str]) -> dict:
-    """Run all tasks and compute aggregate metrics."""
+def run_baseline(base_url: str, tasks: list) -> dict:
+    """Run all tasks and print aggregate metrics."""
     print(f"\nMetaMind Baseline Inference")
     print(f"Backend : {base_url}")
     print(f"Tasks   : {len(tasks)}")
@@ -126,18 +140,18 @@ def run_baseline(base_url: str, tasks: list[str]) -> dict:
             total_success += int(result["success"])
             total_reward  += result["total_reward"]
             total_adapt   += result["adaptation_gain"]
-            time.sleep(1)  # avoid rate limiting
+            time.sleep(1)
         except Exception as e:
             print(f"\n[ERROR] Task failed: {e}")
             results.append({"task": task, "error": str(e)})
 
-    n = len(tasks)
+    n = max(len(tasks), 1)
     summary = {
-        "total_tasks":       n,
-        "success_rate":      round(total_success / n, 4),
-        "avg_reward":        round(total_reward / n, 4),
-        "avg_adapt_gain":    round(total_adapt / n, 4),
-        "results":           results,
+        "total_tasks":    n,
+        "success_rate":   round(total_success / n, 4),
+        "avg_reward":     round(total_reward / n, 4),
+        "avg_adapt_gain": round(total_adapt / n, 4),
+        "results":        results,
     }
 
     print(f"\n{'='*60}")
@@ -147,7 +161,6 @@ def run_baseline(base_url: str, tasks: list[str]) -> dict:
     print(f"  Success Rate : {summary['success_rate']*100:.1f}%")
     print(f"  Avg Reward   : {summary['avg_reward']:+.3f}")
     print(f"  Avg Adapt    : {summary['avg_adapt_gain']*100:.1f}%")
-    print(json.dumps(summary, indent=2))
 
     return summary
 
@@ -160,13 +173,13 @@ def main():
 
     tasks = [args.task] if args.task else TEST_TASKS
 
+    # Health check
     try:
-        # Health check
         r = requests.get(args.url, timeout=10)
         r.raise_for_status()
     except Exception as e:
-        print(f"[ERROR] Cannot reach backend at {args.url}: {e}")
-        print("Start the server: uvicorn main:app --host 0.0.0.0 --port 8000")
+        print(f"[ERROR] Cannot reach {args.url}: {e}")
+        print("Start server: uvicorn main:app --host 0.0.0.0 --port 8000")
         sys.exit(1)
 
     run_baseline(args.url, tasks)
