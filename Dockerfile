@@ -2,31 +2,40 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system deps
+# System deps
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Install Python deps
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install uv
+RUN pip install --no-cache-dir uv
+
+# Copy project files
+COPY pyproject.toml .
+COPY uv.lock .
+
+# Install deps via uv (skips openenv-core if not resolvable, falls back to pip)
+RUN pip install --no-cache-dir \
+    fastapi>=0.115.0 \
+    "uvicorn[standard]>=0.30.6" \
+    requests>=2.32.3 \
+    python-dotenv>=1.0.1 \
+    "pydantic>=2.8.2" \
+    || true
+
+# Try installing openenv-core (may fail gracefully if not on PyPI)
+RUN pip install openenv-core --quiet || pip install openenv --quiet || true
 
 # Copy source
 COPY main.py .
-COPY inference.py .
-
-# Copy optional files
-COPY openenv.yaml .
-
-# Expose port
 COPY app.py .
+COPY inference.py .
 COPY openenv.yaml .
-COPY pyproject.toml .
+COPY server/ ./server/
 
-# HF Spaces uses port 7860
+# HF Spaces port
 EXPOSE 7860
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:7860/ || exit 1
 
-# Run on 7860 (HF Spaces requirement)
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
