@@ -1,0 +1,42 @@
+version = 1
+requires-python = ">=3.10"
+
+[manifest]
+members = [
+    "metamind-env",
+]
+
+[[package]]
+name = "metamind-env"
+version = "1.0.0"
+source = { editable = "." }
+dependencies = [
+    { name = "openenv-core" },
+    { name = "fastapi" },
+    { name = "uvicorn", extra = ["standard"] },
+    { name = "requests" },
+    { name = "python-dotenv" },
+    { name = "pydantic" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "httpx" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "openenv-core", specifier = ">=0.2.0" },
+    { name = "fastapi", specifier = ">=0.115.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.30.6" },
+    { name = "requests", specifier = ">=2.32.3" },
+    { name = "python-dotenv", specifier = ">=1.0.1" },
+    { name = "pydantic", specifier = ">=2.8.2" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest" },
+    { name = "httpx" },
+]
