@@ -2,54 +2,128 @@ name: MetaMind
 version: "1.0.0"
 description: >
   Self-Improving AI Environment — Contextual Bandit → Multi-Armed Bandit → Q-Learning.
-  Escalates algorithms until quality threshold is met. Rewards adaptation.
+  Escalates through 3 RL algorithms until quality threshold is met.
+  Rewards adaptation and penalises extra steps.
 
 task_type: open_ended_reasoning
 real_world: true
 
+# ── Observation space ────────────────────────────────────────────
+# Matches OpenEnv Observation base class:
+#   required: done (bool), reward (float|null), metadata (object)
+# Plus MetaMind custom fields.
 observation_space:
   type: object
+  required: [done, reward, metadata]
   properties:
-    task:               { type: string }
-    attempt_number:     { type: integer, minimum: 1, maximum: 3 }
-    algorithm:          { type: string }
-    level:              { type: string, enum: [easy, medium, hard] }
-    action_space:       { type: array, items: { type: string } }
-    previous_score:     { type: number, minimum: 0.0, maximum: 1.0, nullable: true }
-    previous_response:  { type: string, nullable: true }
-    context:            { type: object }
+    # OpenEnv base fields
+    done:
+      type: boolean
+      description: "Whether the episode has ended"
+    reward:
+      type: [number, "null"]
+      description: "Reward from the last action (null after reset)"
+    metadata:
+      type: object
+      description: "Environment metadata — run_id, algo_key, threshold"
+    # MetaMind custom fields
+    task:
+      type: string
+      description: "The task/question given to the environment"
+    attempt_number:
+      type: integer
+      minimum: 1
+      maximum: 3
+    algorithm:
+      type: string
+      description: "Current algorithm name"
+    level:
+      type: string
+      enum: [easy, medium, hard]
+    previous_score:
+      type: [number, "null"]
+      minimum: 0.0
+      maximum: 1.0
+    action_space:
+      type: array
+      items: { type: string }
 
+# ── Action space ─────────────────────────────────────────────────
 action_space:
   type: object
   properties:
-    type:    { type: string, enum: [reason, calculate, retry, change_strategy, submit] }
-    content: { type: string }
+    type:
+      type: string
+      enum: [reason, calculate, retry, change_strategy, submit]
+    content:
+      type: string
 
+# ── Reward ───────────────────────────────────────────────────────
 reward:
   type: continuous
   range: [-1.5, 2.5]
   signals: dense
+  components:
+    base_reward:
+      description: "Pass or fail reward per algorithm"
+      values: { easy: [1.0, -0.5], medium: [1.5, -0.3], hard: [2.0, -0.1] }
+    step_penalty:
+      description: "attempt_number × per_algo_penalty (0.05/0.03/0.01)"
+    adaptation_bonus:
+      description: "0.7 × score_improvement if score increased over previous attempt"
 
+# ── Tasks ────────────────────────────────────────────────────────
 tasks:
   - id: easy
     difficulty: easy
     threshold: 0.60
     grader: llm_quality_evaluator
+    score_range: [0.0, 1.0]
 
   - id: medium
     difficulty: medium
     threshold: 0.75
     grader: llm_quality_evaluator
+    score_range: [0.0, 1.0]
 
   - id: hard
     difficulty: hard
     threshold: 0.85
     grader: llm_quality_evaluator
+    score_range: [0.0, 1.0]
 
+# ── Algorithms ───────────────────────────────────────────────────
+algorithms:
+  - id: contextual_bandit
+    level: easy
+    policy: greedy_exploit
+    threshold: 0.60
+
+  - id: multi_armed_bandit
+    level: medium
+    policy: ucb1
+    arms: 5
+    threshold: 0.75
+
+  - id: q_learning
+    level: hard
+    policy: epsilon_greedy
+    alpha: 0.15
+    gamma: 0.90
+    epsilon: 0.10
+    threshold: 0.85
+
+# ── API ──────────────────────────────────────────────────────────
 api:
   base_url: http://localhost:8000
   endpoints:
     reset: { method: POST, path: /reset }
-    step:  { method: POST, path: /step }
+    step:  { method: POST, path: /step  }
     state: { method: GET,  path: /state }
-    run:   { method: POST, path: /run }
+    run:   { method: POST, path: /run   }
+
+# ── Baseline ─────────────────────────────────────────────────────
+baseline:
+  script: inference.py
+  endpoint: POST /run
+  reproducible: true
