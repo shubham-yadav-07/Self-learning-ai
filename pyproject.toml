@@ -1,36 +1,41 @@
-[build-system]
-requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+FROM python:3.11-slim
 
-[project]
-name = "metamind-env"
-version = "1.0.0"
-description = "MetaMind — Self-Improving AI Environment (Contextual Bandit → MAB → Q-Learning)"
-readme = "README.md"
-requires-python = ">=3.10"
-license = { text = "MIT" }
-keywords = ["openenv", "reinforcement-learning", "ai", "environment"]
+WORKDIR /app
 
-dependencies = [
-    "fastapi==0.115.0",
-    "uvicorn[standard]==0.30.6",
-    "requests==2.32.3",
-    "python-dotenv==1.0.1",
-    "pydantic==2.8.2",
-]
+# System deps
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-[project.optional-dependencies]
-dev = ["pytest", "httpx"]
+# Install uv
+RUN pip install --no-cache-dir uv
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["metamind*"]
+# Copy project files
+COPY pyproject.toml .
+COPY uv.lock .
 
-[project.scripts]
-metamind-serve = "main:app"
+# Install deps via uv (skips openenv-core if not resolvable, falls back to pip)
+RUN pip install --no-cache-dir \
+    fastapi>=0.115.0 \
+    "uvicorn[standard]>=0.30.6" \
+    requests>=2.32.3 \
+    python-dotenv>=1.0.1 \
+    "pydantic>=2.8.2" \
+    || true
 
-[tool.openenv]
-name        = "MetaMind"
-version     = "1.0.0"
-entry_point = "main:app"
-port        = 8000
+# Try installing openenv-core (may fail gracefully if not on PyPI)
+RUN pip install openenv-core --quiet || pip install openenv --quiet || true
+
+# Copy source
+COPY main.py .
+COPY app.py .
+COPY inference.py .
+COPY openenv.yaml .
+COPY server/ ./server/
+
+# HF Spaces port
+EXPOSE 7860
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD curl -f http://localhost:7860/ || exit 1
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
